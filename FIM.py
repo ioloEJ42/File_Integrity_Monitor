@@ -425,8 +425,14 @@ def main():
                 break
             time.sleep(0.1)  # Prevent high CPU usage
 
+        # ⬇️ Countdown starts only after 'q' is pressed
+        console.print("[yellow]Stopping monitor in 3 seconds...[/yellow]")
+        for i in range(3, 0, -1):
+            time.sleep(1)
+            console.print(f"[yellow]{i}...[/yellow]")
+
         observer.stop()
-        console.print("[yellow]Stopping monitor...[/yellow]")
+        console.print("[yellow]Monitor stopped.[/yellow]")
         observer.join()
 
         # Ask about exporting before final exit
