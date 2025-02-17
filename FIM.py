@@ -435,6 +435,9 @@ def main():
         console.print("[yellow]Monitor stopped.[/yellow]")
         observer.join()
 
+        log_count = len(monitor.db.get_all_alerts())
+        console.print(f"\n[cyan]Total file events logged: {log_count}[/cyan]")
+
         # Ask about exporting before final exit
         export_choice = (
             input("\nWould you like to export the logs? (y/n/both): ").lower().strip()
