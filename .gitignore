@@ -1,3 +1,7 @@
+# Ignore exports folder where logs are stored
+exports/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
