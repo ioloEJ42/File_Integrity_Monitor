@@ -1,6 +1,8 @@
 # Ignore exports folder where logs are stored
 exports/
 
+# Ignore any generated .db files
+*.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
