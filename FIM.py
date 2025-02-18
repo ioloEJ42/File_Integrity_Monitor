@@ -44,22 +44,25 @@ def get_key():
 
 
 def clean_path(path):
-    """Clean the input path by removing quotes and extra spaces and converting to proper path format"""
+    # Strip quotes and whitespace
     path = path.strip().strip('"').strip("'").strip()
 
-    # If running in WSL and a Windows path is provided, convert it
-    if os.name != "nt" and path.startswith(("C:", "D:", "E:")):
-        # Convert Windows path to WSL path
-        drive_letter = path[0].lower()
-        win_path = path[3:].replace("\\", "/")
-        wsl_path = f"/mnt/{drive_letter}/{win_path}"
-        return os.path.abspath(wsl_path)
+    if os.name == "nt":  # Windows
+        # Normalize slashes to Windows style and resolve any relative components
+        path = os.path.normpath(path.replace("/", "\\"))
+        # Ensure proper absolute path
+        return os.path.abspath(path)
+    else:  # Unix/WSL
+        # Check if this is a Windows path (e.g., C:\, D:\, etc.)
+        if len(path) > 1 and path[0].isalpha() and path[1] == ":":
+            # Convert Windows path to WSL
+            drive_letter = path[0].lower()
+            # Remove drive letter and colon, normalize slashes
+            win_path = path[2:].replace("\\", "/").lstrip("/")
+            path = f"/mnt/{drive_letter}/{win_path}"
 
-    # For Windows, convert forward slashes to backslashes
-    elif os.name == "nt":
-        return os.path.abspath(path.replace("/", "\\"))
-
-    return os.path.abspath(path)
+        # Normalize the path for Unix systems
+        return os.path.abspath(path)
 
 
 class Database:
