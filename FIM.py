@@ -429,14 +429,17 @@ def main():
         observer.schedule(event_handler, path_to_monitor, recursive=True)
         observer.start()
 
-        console.print("[green]Started monitoring. Press 'q' to stop...[/green]")
+        start_time = datetime.now()
+        console.print(
+            f"[green]Started monitoring at {start_time.strftime('%Y-%m-%d %H:%M:%S')}. Press 'q' to stop...[/green]"
+        )
 
         while True:
             if get_key() == "q":
                 break
             time.sleep(0.1)  # Prevent high CPU usage
 
-        # ⬇️ Countdown starts only after 'q' is pressed
+        # Countdown starts only after 'q' is pressed
         console.print("[yellow]Stopping monitor in 3 seconds...[/yellow]")
         for i in range(3, 0, -1):
             time.sleep(1)
@@ -468,6 +471,13 @@ def main():
                 export_to_pdf(monitor)
 
         console.print("[green]Monitoring stopped successfully.[/green]")
+
+        console.print("\n[cyan]Session Summary:[/cyan]")
+        console.print(f"Directory monitored: [yellow]{path_to_monitor}[/yellow]")
+        console.print(f"Total file events logged: {log_count}")
+
+        duration = datetime.now() - start_time
+        console.print(f"Monitoring duration: {str(duration).split('.')[0]}")
 
     except Exception as e:
         console.print(f"[red]An error occurred: {str(e)}[/red]")
