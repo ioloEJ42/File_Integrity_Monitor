@@ -26,6 +26,7 @@ from reportlab.graphics.widgets.markers import makeMarker
 from reportlab.graphics import renderPDF
 from collections import defaultdict
 from reportlab.pdfgen import canvas
+from textwrap import wrap
 
 console = Console()
 
@@ -321,14 +322,36 @@ def export_to_pdf(monitor, export_path=None):
         elements.append(Paragraph("Detailed File Events", styles["SectionHeader"]))
 
         # Format the data with better timestamp and path handling
-        data = [["Timestamp", "File Path", "Event Type", "Details"]]
+        data = [
+            ["Timestamp", "File Path", "Event Type", "Details (User, SHA-256 hash)"]
+        ]
         for alert in alerts:
             timestamp = datetime.fromisoformat(alert[0]).strftime("%Y-%m-%d %H:%M:%S")
             file_path = os.path.basename(alert[1])  # Show only filename
-            data.append([timestamp, file_path, alert[2], alert[3]])
+            formatted_details = (
+                f"User: {alert[3].split('User: ')[1].split(',')[0]}<br/>"
+            )
+            if "Hash changed" in alert[3]:
+                hash_data = alert[3].split("Hash changed: ")[1].split("->")
+                old_hash = (
+                    "None"
+                    if "None" in hash_data[0]
+                    else "<br/>".join(wrap(hash_data[0], 32))
+                )
+                new_hash = "<br/>".join(wrap(hash_data[1], 32))
+                formatted_details += f"Hash changed:<br/>{old_hash} -><br/>{new_hash}"
+
+            data.append(
+                [
+                    timestamp,
+                    Paragraph(file_path, styles["Normal"]),
+                    alert[2],
+                    Paragraph(formatted_details, styles["Normal"]),
+                ]
+            )
 
         event_table = Table(
-            data, colWidths=[1.5 * inch, 2 * inch, 1 * inch, 4.5 * inch], repeatRows=1
+            data, colWidths=[1.2 * inch, 2.5 * inch, 1.2 * inch, None], repeatRows=1
         )
 
         event_table.setStyle(
@@ -345,6 +368,7 @@ def export_to_pdf(monitor, export_path=None):
                         [colors.HexColor("#FFFFFF"), colors.HexColor("#F8F9FA")],
                     ),
                     ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E9ECEF")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
                     ("ALIGN", (0, 0), (-1, -1), "LEFT"),
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                     ("FONTSIZE", (0, 0), (-1, 0), 10),
