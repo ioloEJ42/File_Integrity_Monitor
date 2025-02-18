@@ -13,6 +13,7 @@ from reportlab.platypus import (
     Paragraph,
     Spacer,
     Image,
+    PageBreak,
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
@@ -61,13 +62,12 @@ def export_to_csv(monitor, export_path=None):
 def export_to_pdf(monitor, export_path=None):
     """Export alerts to a detailed PDF report with summary statistics and visualizations."""
     try:
-        alerts = monitor.db.get_all_alerts()  # Ensure alerts are available
-
+        alerts = monitor.db.get_all_alerts()
         if not alerts:
             console.print("[red]No alerts to export.[/red]")
             return False
 
-        # Metadata
+        # Enhanced metadata
         pdf_metadata = {
             "Title": "File Integrity Monitor Report",
             "Author": "IEJ File Monitor",
@@ -75,11 +75,18 @@ def export_to_pdf(monitor, export_path=None):
             "CreationDate": datetime.now(),
         }
 
-        # File Path Setup
         if not export_path:
             export_path = get_export_path("pdf")
 
-        doc = SimpleDocTemplate(export_path, pagesize=landscape(letter))
+        # Create document with better margins
+        doc = SimpleDocTemplate(
+            export_path,
+            pagesize=landscape(letter),
+            rightMargin=50,
+            leftMargin=50,
+            topMargin=50,
+            bottomMargin=50,
+        )
 
         # Styles
         styles = getSampleStyleSheet()
@@ -93,84 +100,39 @@ def export_to_pdf(monitor, export_path=None):
             )
         )
 
-        # Summary Statistics
-        event_counts = defaultdict(int)
-        for alert in alerts:
-            event_counts[alert[2]] += 1  # Count occurrences of event types
-
-        most_common_event = (
-            max(event_counts, key=event_counts.get) if event_counts else "N/A"
-        )
-        created_count = event_counts.get("CREATED", 0)
-        modified_count = event_counts.get("MODIFIED", 0)
-        deleted_count = event_counts.get("DELETED", 0)
-
-        summary_data = [
-            ["Total Events", str(len(alerts))],
-            ["Monitoring Period", f"{alerts[0][0]} to {alerts[-1][0]}"],
-            ["Most Common Event", most_common_event],
-            ["Modified Files", str(modified_count)],
-            ["Created Files", str(created_count)],
-            ["Deleted Files", str(deleted_count)],
-        ]
-
-        summary_table = Table(summary_data, colWidths=[2 * inch, 4 * inch])
-        summary_table.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F5F5F5")),
-                    ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#2C3E50")),
-                    ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 9),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
-                    ("GRID", (0, 0), (-1, -1), 1, colors.HexColor("#E0E0E0")),
-                ]
+        styles.add(
+            ParagraphStyle(
+                "MainTitle",
+                parent=styles["Title"],
+                fontSize=24,
+                spaceAfter=30,
+                textColor=colors.HexColor("#2C3E50"),
+                alignment=1,
             )
         )
 
-        # Pie Chart: Event Distribution
-        def create_event_chart(alerts):
-            drawing = Drawing(400, 200)
-            pie = Pie()
-            pie.x = 100
-            pie.y = 25
-            pie.width = 200
-            pie.height = 150
+        styles.add(
+            ParagraphStyle(
+                "SubTitle",
+                parent=styles["Heading2"],
+                fontSize=16,
+                spaceBefore=20,
+                spaceAfter=20,
+                textColor=colors.HexColor("#34495E"),
+                alignment=1,
+            )
+        )
 
-            pie.data = list(event_counts.values())
-            pie.labels = list(event_counts.keys())
-            pie.slices.strokeWidth = 0.5
-            pie.slices[0].fillColor = colors.green
-            pie.slices[1].fillColor = colors.blue
-            pie.slices[2].fillColor = colors.red
+        styles.add(
+            ParagraphStyle(
+                "TimeStamp",
+                parent=styles["Normal"],
+                fontSize=10,
+                textColor=colors.HexColor("#7F8C8D"),
+                alignment=1,
+            )
+        )
 
-            drawing.add(pie)
-            return drawing
-
-        # Bar Chart: Hourly Event Analysis
-        def analyze_time_patterns(alerts):
-            hourly_distribution = defaultdict(int)
-            for alert in alerts:
-                timestamp = datetime.fromisoformat(alert[0])
-                hourly_distribution[timestamp.hour] += 1
-
-            drawing = Drawing(400, 200)
-            bar_chart = VerticalBarChart()
-            bar_chart.x = 50
-            bar_chart.y = 50
-            bar_chart.height = 125
-            bar_chart.width = 300
-            bar_chart.data = [list(hourly_distribution.values())]
-            bar_chart.categoryAxis.categoryNames = [
-                str(h) for h in hourly_distribution.keys()
-            ]
-            bar_chart.barWidth = 8
-
-            drawing.add(bar_chart)
-            return drawing
-
-        # Page Numbering
         class NumberedCanvas(canvas.Canvas):
             def __init__(self, *args, **kwargs):
                 canvas.Canvas.__init__(self, *args, **kwargs)
@@ -196,44 +158,206 @@ def export_to_pdf(monitor, export_path=None):
                     f"Page {self._pageNumber} of {page_count}",
                 )
 
-        # Build PDF
         elements = []
 
-        # Title
-        elements.append(Paragraph("File Integrity Monitor Report", styles["Title"]))
-        elements.append(Spacer(1, 12))
+        # Title Block
+        elements.append(Paragraph("File Integrity Monitor Report", styles["MainTitle"]))
+        elements.append(
+            Paragraph(
+                f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                styles["TimeStamp"],
+            )
+        )
+        elements.append(Spacer(1, 30))
 
-        # Summary Table
-        elements.append(Paragraph("Summary Statistics", styles["SectionHeader"]))
+        # Summary Statistics
+        event_counts = defaultdict(int)
+        for alert in alerts:
+            event_counts[alert[2]] += 1
+
+        summary_data = [
+            ["Monitoring Period", f"{alerts[0][0]} to {alerts[-1][0]}"],
+            ["Total Events", str(len(alerts))],
+            ["Created Files", str(event_counts.get("CREATED", 0))],
+            ["Modified Files", str(event_counts.get("MODIFIED", 0))],
+            ["Deleted Files", str(event_counts.get("DELETED", 0))],
+            ["Renamed Files", str(event_counts.get("RENAMED", 0))],
+        ]
+
+        # Enhanced Summary Table
+        summary_table = Table(summary_data, colWidths=[2.5 * inch, 5 * inch])
+        summary_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F8F9FA")),
+                    ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#2C3E50")),
+                    ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 11),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+                    ("TOPPADDING", (0, 0), (-1, -1), 12),
+                    ("GRID", (0, 0), (-1, -1), 1, colors.HexColor("#E9ECEF")),
+                    (
+                        "ROWBACKGROUNDS",
+                        (0, 0),
+                        (-1, -1),
+                        [colors.HexColor("#FFFFFF"), colors.HexColor("#F8F9FA")],
+                    ),
+                    ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+                ]
+            )
+        )
+
+        elements.append(Paragraph("Summary Statistics", styles["SubTitle"]))
         elements.append(summary_table)
-        elements.append(Spacer(1, 24))
+        elements.append(PageBreak())
 
-        # Pie Chart
-        elements.append(Paragraph("Event Type Distribution", styles["SectionHeader"]))
-        elements.append(create_event_chart(alerts))
-        elements.append(Spacer(1, 24))
+        # Create charts
+        def create_event_chart(alerts):
+            drawing = Drawing(400, 200)
+            pie = Pie()
+            pie.x = 100
+            pie.y = 25
+            pie.width = 200
+            pie.height = 150
 
-        # Bar Chart
-        elements.append(Paragraph("File Events by Hour", styles["SectionHeader"]))
-        elements.append(analyze_time_patterns(alerts))
-        elements.append(Spacer(1, 24))
+            # Get data and calculate percentages
+            total_events = sum(event_counts.values())
+            formatted_labels = []
+            for event_type, count in zip(event_counts.keys(), event_counts.values()):
+                percentage = (count / total_events) * 100
+                formatted_labels.append(f"{event_type} ({count}, {percentage:.1f}%)")
 
-        # Table of Events
+            pie.data = list(event_counts.values())
+            pie.labels = formatted_labels
+            pie.slices.strokeWidth = 0.5
+
+            # Set colors for each type
+            for i, (event_type, _) in enumerate(event_counts.items()):
+                if event_type == "CREATED":
+                    pie.slices[i].fillColor = colors.green
+                elif event_type == "MODIFIED":
+                    pie.slices[i].fillColor = colors.red
+                elif event_type == "DELETED":
+                    pie.slices[i].fillColor = colors.blue
+                else:  # RENAMED
+                    pie.slices[i].fillColor = colors.cyan
+
+            drawing.add(pie)
+            return drawing
+
+        def analyze_time_patterns(alerts):
+            # First, calculate the total time span
+            timestamps = [datetime.fromisoformat(alert[0]) for alert in alerts]
+            time_span = max(timestamps) - min(timestamps)
+            total_minutes = time_span.total_seconds() / 60
+
+            drawing = Drawing(400, 200)
+            bar_chart = VerticalBarChart()
+
+            # If monitoring period is less than 1 hour, use minute-based intervals
+            if total_minutes < 60:
+                distribution = defaultdict(int)
+                for timestamp in timestamps:
+                    minute = timestamp.minute
+                    distribution[minute] += 1
+
+                bar_chart.data = [list(distribution.values())]
+                bar_chart.categoryAxis.categoryNames = [
+                    f"Min {m}" for m in distribution.keys()
+                ]
+                y_label = "Events per Minute"
+            else:
+                # Use original hourly distribution
+                hourly_distribution = defaultdict(int)
+                for timestamp in timestamps:
+                    hour = timestamp.hour
+                    hourly_distribution[hour] += 1
+
+                bar_chart.data = [list(hourly_distribution.values())]
+                bar_chart.categoryAxis.categoryNames = [
+                    f"Hour {h}" for h in hourly_distribution.keys()
+                ]
+                y_label = "Events per Hour"
+
+            # Improved bar chart styling
+            bar_chart.x = 50
+            bar_chart.y = 50
+            bar_chart.height = 125
+            bar_chart.width = 300
+            bar_chart.barWidth = 8
+
+            # Add proper styling
+            bar_chart.valueAxis.labels.fontSize = 8
+            bar_chart.categoryAxis.labels.fontSize = 8
+            bar_chart.valueAxis.strokeWidth = 0.5
+            bar_chart.valueAxis.strokeColor = colors.grey
+            bar_chart.bars[0].fillColor = colors.HexColor("#2C3E50")
+
+            drawing.add(bar_chart)
+            return drawing
+
+        # Create and add charts side by side
+        pie_chart = create_event_chart(alerts)
+        bar_chart = analyze_time_patterns(alerts)
+
+        chart_table = Table(
+            [[pie_chart, bar_chart]], colWidths=[4.5 * inch, 4.5 * inch]
+        )
+        chart_table.setStyle(
+            TableStyle(
+                [
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ]
+            )
+        )
+
+        elements.append(Paragraph("Event Analysis", styles["SubTitle"]))
+        elements.append(chart_table)
+        elements.append(PageBreak())
+
+        # Detailed Events Table
         elements.append(Paragraph("Detailed File Events", styles["SectionHeader"]))
 
+        # Format the data with better timestamp and path handling
         data = [["Timestamp", "File Path", "Event Type", "Details"]]
         for alert in alerts:
-            data.append([alert[0], alert[1], alert[2], alert[3]])
+            timestamp = datetime.fromisoformat(alert[0]).strftime("%Y-%m-%d %H:%M:%S")
+            file_path = os.path.basename(alert[1])  # Show only filename
+            data.append([timestamp, file_path, alert[2], alert[3]])
 
         event_table = Table(
-            data, colWidths=[1.5 * inch, 4 * inch, 1.5 * inch, 3 * inch]
+            data, colWidths=[1.5 * inch, 2 * inch, 1 * inch, 4.5 * inch], repeatRows=1
         )
-        event_table.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.5, colors.grey)]))
+
+        event_table.setStyle(
+            TableStyle(
+                [
+                    # Header
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2C3E50")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    # Alternating rows
+                    (
+                        "ROWBACKGROUNDS",
+                        (0, 1),
+                        (-1, -1),
+                        [colors.HexColor("#FFFFFF"), colors.HexColor("#F8F9FA")],
+                    ),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E9ECEF")),
+                    ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, 0), 10),
+                    ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
+                    ("TOPPADDING", (0, 0), (-1, 0), 12),
+                ]
+            )
+        )
+
         elements.append(event_table)
 
-        # Generate PDF
+        # Generate PDF with page numbers
         doc.build(elements, canvasmaker=NumberedCanvas)
-
         console.print(f"[green]Logs exported successfully to: {export_path}[/green]")
         return True
 
