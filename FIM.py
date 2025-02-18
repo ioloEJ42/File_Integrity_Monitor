@@ -1,3 +1,14 @@
+# $$$$$$$$\$$$$$$\ $$\      $$\
+# $$  _____\_$$  _|$$$\    $$$ |
+# $$ |       $$ |  $$$$\  $$$$ |
+# $$$$$\     $$ |  $$\$$\$$ $$ |
+# $$  __|    $$ |  $$ \$$$  $$ |
+# $$ |       $$ |  $$ |\$  /$$ |
+# $$ |     $$$$$$\ $$ | \_/ $$ |
+# \__|     \______|\__|     \__|
+
+# Made by IEJ
+
 import os
 import hashlib
 import sqlite3
@@ -438,17 +449,23 @@ def main():
         log_count = len(monitor.db.get_all_alerts())
         console.print(f"\n[cyan]Total file events logged: {log_count}[/cyan]")
 
-        # Ask about exporting before final exit
-        export_choice = (
-            input("\nWould you like to export the logs? (y/n/both): ").lower().strip()
-        )
-
-        if export_choice in ["y", "yes"]:
-            export_logs(monitor)
-        elif export_choice in ["b", "both"]:
-            console.print("[yellow]Exporting logs as both CSV and PDF...[/yellow]")
-            export_to_csv(monitor)
-            export_to_pdf(monitor)
+        # Skip export prompt if no logs exist
+        if log_count == 0:
+            console.print(
+                "[yellow]No events detected. Skipping export prompt.[/yellow]"
+            )
+        else:
+            export_choice = (
+                input("\nWould you like to export the logs? (y/n/both): ")
+                .lower()
+                .strip()
+            )
+            if export_choice in ["y", "yes"]:
+                export_logs(monitor)
+            elif export_choice in ["b", "both"]:
+                console.print("[yellow]Exporting logs as both CSV and PDF...[/yellow]")
+                export_to_csv(monitor)
+                export_to_pdf(monitor)
 
         console.print("[green]Monitoring stopped successfully.[/green]")
 
