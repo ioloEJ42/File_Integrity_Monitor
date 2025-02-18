@@ -3,6 +3,9 @@ import time
 import random
 import string
 from datetime import datetime
+from rich.console import Console
+
+console = Console()
 
 
 class FIMTester:
@@ -33,7 +36,7 @@ class FIMTester:
             f.write(self.generate_random_content())
 
         self.created_files.append(filepath)
-        print(f"Created: {filepath}")
+        console.print(f"[green]Created: {filepath}[/green]")
         return filepath
 
     def modify_random_file(self):
@@ -45,7 +48,7 @@ class FIMTester:
         if os.path.exists(target_file):
             with open(target_file, "a") as f:
                 f.write("\n" + self.generate_random_content())
-            print(f"Modified: {target_file}")
+            console.print(f"[blue]Modified: {target_file}[/blue]")
             return target_file
         return None
 
@@ -66,7 +69,7 @@ class FIMTester:
             os.rename(source_file, new_path)
             self.created_files.remove(source_file)
             self.created_files.append(new_path)
-            print(f"Renamed: {source_file} -> {new_path}")
+            console.print(f"[yellow]Renamed: {source_file} -> {new_path}[/yellow]")
             return new_path
         return None
 
@@ -79,13 +82,15 @@ class FIMTester:
         if os.path.exists(target_file):
             os.remove(target_file)
             self.created_files.remove(target_file)
-            print(f"Deleted: {target_file}")
+            console.print(f"[red]Deleted: {target_file}[/red]")
             return target_file
         return None
 
     def run_test_sequence(self, duration_seconds=60, interval_seconds=5):
         """Run a sequence of random file operations"""
-        print(f"Starting test sequence for {duration_seconds} seconds...")
+        console.print(
+            f"[cyan]Starting test sequence for {duration_seconds} seconds...[/cyan]"
+        )
         end_time = time.time() + duration_seconds
 
         while time.time() < end_time:
@@ -133,7 +138,7 @@ def main():
         test_dir = os.path.abspath(test_dir)  # Ensure absolute path
 
         if not os.path.exists(test_dir):
-            print(f"Creating directory: {test_dir}")
+            console.print(f"[cyan]Creating directory: {test_dir}[/cyan]")
             os.makedirs(test_dir, exist_ok=True)
 
         test_duration = int(
@@ -143,13 +148,13 @@ def main():
             input("Enter interval between operations in seconds (default 5): ") or "5"
         )
 
-        print(f"Using test directory: {test_dir}")  # Debug output
+        console.print(f"[cyan]Using test directory: {test_dir}[/cyan]")  # Debug output
         tester = FIMTester(test_dir)
         tester.run_test_sequence(test_duration, interval)
-        print("Test sequence completed!")
+        console.print("[green]Test sequence completed![/green]")
 
     except Exception as e:
-        print(f"Error during test execution: {e}")
+        console.print(f"[red]Error during test execution: {e}[/red]")
         raise
 
 
