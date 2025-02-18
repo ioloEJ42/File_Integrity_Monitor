@@ -18,6 +18,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from rich.console import Console
 import platform
+import getpass
 
 # Pdf Exporting Imports
 from exporters import export_to_csv, export_to_pdf, export_logs
@@ -204,9 +205,15 @@ class FileEventHandler(FileSystemEventHandler):
     def _handle_rename_event(self, src_path, dest_path):
         src_path_clean = self.format_path(src_path)
         dest_path_clean = self.format_path(dest_path)
-        alert_msg = f"File RENAMED: {src_path_clean} -> {dest_path_clean}"
+        username = getpass.getuser()  # Get the current user
+
+        alert_msg = (
+            f"File RENAMED: {src_path_clean} -> {dest_path_clean} (User: {username})"
+        )
         console.print(f"[yellow]{alert_msg}[/yellow]")
-        self.monitor.db.log_alert(dest_path, "RENAMED", f"Renamed from: {src_path}")
+        self.monitor.db.log_alert(
+            dest_path, "RENAMED", f"User: {username}, Renamed from: {src_path}"
+        )
 
         # Update the database with the new file path
         if os.path.exists(dest_path):
@@ -221,19 +228,23 @@ class FileEventHandler(FileSystemEventHandler):
 
     def _handle_file_event(self, file_path, event_type):
         file_path_clean = self.format_path(file_path)
+        username = getpass.getuser()  # Get the current user
+
         if event_type != "DELETED":
             new_hash = self.monitor.calculate_file_hash(file_path)
             old_hash = self.monitor.db.get_file_hash(file_path)
 
             if old_hash != new_hash:
-                alert_msg = f"File {event_type}: {file_path_clean}"
+                alert_msg = f"File {event_type}: {file_path_clean} (User: {username})"
                 if event_type == "CREATED":
                     console.print(f"[green]{alert_msg}[/green]")
                 elif event_type == "MODIFIED":
                     console.print(f"[blue]{alert_msg}[/blue]")
 
                 self.monitor.db.log_alert(
-                    file_path, event_type, f"Hash changed: {old_hash} -> {new_hash}"
+                    file_path,
+                    event_type,
+                    f"User: {username}, Hash changed: {old_hash} -> {new_hash}",
                 )
 
                 if event_type != "DELETED":
@@ -245,9 +256,11 @@ class FileEventHandler(FileSystemEventHandler):
                         str(oct(stats.st_mode)[-3:]),
                     )
         else:
-            alert_msg = f"File {event_type}: {file_path_clean}"
+            alert_msg = f"File {event_type}: {file_path_clean} (User: {username})"
             console.print(f"[red]{alert_msg}[/red]")
-            self.monitor.db.log_alert(file_path, event_type, "File deleted")
+            self.monitor.db.log_alert(
+                file_path, event_type, f"User: {username}, File deleted"
+            )
 
 
 def main():
